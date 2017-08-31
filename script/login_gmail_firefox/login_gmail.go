@@ -179,56 +179,57 @@ func login(email, password string, port int, caps selenium.Capabilities) int {
 		return FAILED
 	}
 
-	btn, err := elem.FindElement(selenium.ByXPATH, `//*[@id="identifierNext"]`)
+	idNextBtn, err := wd.FindElement(selenium.ByXPATH, `//*[@id="identifierNext"]`)
 	if err != nil {
 		fmt.Printf("FAILED when find identifier next button [%s]: %s\n", email, err)
 		return FAILED
 	}
-	if err := btn.Click(); err != nil {
+	if err := idNextBtn.Click(); err != nil {
 		fmt.Printf("FAILED when click identifier next button [%s]: %s\n", email, err)
 		return FAILED
 	}
 
 	time.Sleep(time.Second * 2)
-	// Enter userd id
-	elem, err = wd.FindElement(selenium.ByXPATH, `//*[@id="password"]/div[1]/div/div[1]/input`)
-	if err != nil {
-		fmt.Printf("INVALID when find password field [%s]: %s\n", email, err)
-		return INVALID
-	}
-	err = elem.SendKeys(password)
-	if err != nil {
-		fmt.Printf("INVALID when input password [%s]: %s\n", email, err)
+
+	// trying to find out identifier error
+	if identifierErrField, findIdentifierErr := wd.FindElement(selenium.ByXPATH, `//*[@id="identifierError"]`); findIdentifierErr == nil || identifierErrField != nil {
+		msg, _ := identifierErrField.Text()
+		fmt.Printf("INVALID account [%s], message: %s\n", email, msg)
 		return INVALID
 	}
 
-	btn, err = elem.FindElement(selenium.ByXPATH, `//*[@id="passwordNext"]`)
+	// Enter user passwod
+	pwdField, err := wd.FindElement(selenium.ByXPATH, `//*[@id="password"]/div[1]/div/div[1]/input`)
 	if err != nil {
-		fmt.Printf("INVALID when find password next button [%s]: %s\n", email, err)
-		return INVALID
+		fmt.Printf("FAILED when find password field [%s]: %s\n", email, err)
+		return FAILED
+	}
+	err = pwdField.SendKeys(password)
+	if err != nil {
+		fmt.Printf("FAILED when input password [%s]: %s\n", email, err)
+		return FAILED
+	}
+
+	pwdNextBtn, err := wd.FindElement(selenium.ByXPATH, `//*[@id="passwordNext"]`)
+	if err != nil {
+		fmt.Printf("FAILED when find password next button [%s]: %s\n", email, err)
+		return FAILED
 	}
 	// record current url before click button.
-	if err := btn.Click(); err != nil {
+	if err := pwdNextBtn.Click(); err != nil {
 		fmt.Printf("FAILED when click password next button [%s]: %s\n", email, err)
 		return FAILED
 	}
 	// // get current url after click
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Second * 1)
 
 	ca, err := wd.FindElement(selenium.ByXPATH, `//*[@id="captchaimg"]`)
-	if err != nil {
-		fmt.Printf("find capture img failed: %s\n", err)
-	}
 	if err == nil && ca != nil {
-		src, err := ca.GetAttribute("src")
-		if err != nil {
-			fmt.Printf("cannot get src attribute for capture image: %s\n", err)
-		}
+		src, _ := ca.GetAttribute("src")
 		if src != "" {
 			fmt.Printf("NV [%s], img src: %s\n", email, src)
 			return NEEDVERIFICATION
 		}
-		fmt.Print("src attribute for capture img is empty")
 	}
 	msgElem, err := wd.FindElement(selenium.ByCSSSelector, `#password > div.LXRPh > div.dEOOab.RxsGPe`)
 	// the request is blocked in current page, and show some message.
@@ -238,9 +239,6 @@ func login(email, password string, port int, caps selenium.Capabilities) int {
 			fmt.Printf("CHANGED [%s]: %s\n", email, txt)
 			return PWDCHANGED
 		}
-	}
-	if err != nil {
-		fmt.Printf("find password changed message failed: %s\n", err)
 	}
 	// time.Sleep(time.Second * 2)
 	// } else if afterLoginURL == "https://mail.google.com/mail/u/0/#inbox" {
